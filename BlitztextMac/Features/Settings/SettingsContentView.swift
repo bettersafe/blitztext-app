@@ -960,6 +960,20 @@ struct CustomizeSettingsView: View {
                         }
                     }
 
+                Toggle("Transkription immer lokal", isOn: $appState.appSettings.localTranscriptionAlways)
+                    .toggleStyle(.switch)
+                    .disabled(appState.appSettings.secureLocalModeEnabled)
+                    .onChange(of: appState.appSettings.localTranscriptionAlways) { _, newValue in
+                        if newValue && !appState.selectedLocalModelIsInstalled {
+                            appState.installSelectedLocalModel()
+                        }
+                    }
+
+                Text("Blitztext+, Dampf ablassen und Emoji transkribieren dann auf dem Gerät und schicken nur den fertigen Text an den Anbieter. Für Gateways mit Filter: Namen im Text lassen sich unkenntlich machen, in einer Tonaufnahme nicht.")
+                    .font(.system(size: 10.5))
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+
                 HStack(spacing: 6) {
                     Image(systemName: appState.selectedLocalModelIsInstalled ? "checkmark.circle.fill" : "arrow.down.circle.fill")
                         .font(.system(size: 11, weight: .semibold))

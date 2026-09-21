@@ -287,7 +287,9 @@ final class AppState {
             let workflow = TextImprovementWorkflow(
                 settings: textImprovementSettings,
                 language: transcriptionSettings.language,
-                apiConfiguration: apiConfiguration
+                apiConfiguration: apiConfiguration,
+                backend: aiTranscriptionBackend,
+                localModelName: selectedLocalModelName
             )
             configureWorkflowHandlers(workflow)
             activeWorkflow = workflow
@@ -299,7 +301,9 @@ final class AppState {
                 settings: dampfAblassenSettings,
                 customTerms: textImprovementSettings.customTerms,
                 language: transcriptionSettings.language,
-                apiConfiguration: apiConfiguration
+                apiConfiguration: apiConfiguration,
+                backend: aiTranscriptionBackend,
+                localModelName: selectedLocalModelName
             )
             configureWorkflowHandlers(workflow)
             activeWorkflow = workflow
@@ -311,7 +315,9 @@ final class AppState {
                 settings: emojiTextSettings,
                 customTerms: textImprovementSettings.customTerms,
                 language: transcriptionSettings.language,
-                apiConfiguration: apiConfiguration
+                apiConfiguration: apiConfiguration,
+                backend: aiTranscriptionBackend,
+                localModelName: selectedLocalModelName
             )
             configureWorkflowHandlers(workflow)
             activeWorkflow = workflow
@@ -335,6 +341,15 @@ final class AppState {
         page = source.presentsWorkflowPage ? .workflow : .main
     }
 
+    /// Welchen Weg die Tonaufnahme der Workflows mit KI-Nachbearbeitung nimmt.
+    ///
+    /// `.local` verlangt ein installiertes Modell -- ohne das waere der
+    /// Schalter eine Zusage, die das Geraet nicht halten kann. `isWorkflowAvailable`
+    /// prueft dieselbe Bedingung, damit der Workflow gar nicht erst startet.
+    var aiTranscriptionBackend: TranscriptionBackend {
+        appSettings.localTranscriptionAlways && selectedLocalModelIsInstalled ? .local : .remote
+    }
+
     func isWorkflowAvailable(_ type: WorkflowType) -> Bool {
         switch type {
         case .localTranscription:
@@ -349,7 +364,10 @@ final class AppState {
                 ? selectedLocalModelIsInstalled
                 : remoteProviderConfigured
         case .textImprover, .dampfAblassen, .emojiText:
-            return !appSettings.secureLocalModeEnabled && remoteProviderConfigured
+            guard !appSettings.secureLocalModeEnabled, remoteProviderConfigured else { return false }
+            // Mit lokaler Transkription haengt der Start zusaetzlich am Modell:
+            // sonst liefe der Workflow an und braeche beim Transkribieren ab.
+            return appSettings.localTranscriptionAlways ? selectedLocalModelIsInstalled : true
         }
     }
 

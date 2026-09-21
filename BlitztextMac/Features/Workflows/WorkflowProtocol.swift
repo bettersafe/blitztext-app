@@ -90,6 +90,16 @@ struct AppSettings: Codable {
     var hotkeyBindings: HotkeyBindings = HotkeyBindings()
     var hasSeenOnboarding: Bool = false
     var secureLocalModeEnabled: Bool = false
+    /// Die Transkription bleibt auf dem Geraet, auch wenn die Nachbearbeitung
+    /// ueber einen Anbieter laeuft.
+    ///
+    /// Unterschied zu `secureLocalModeEnabled`: der schaltet die Workflows mit
+    /// KI-Nachbearbeitung ganz ab ("nichts verlaesst das Geraet"). Dieser
+    /// Schalter nimmt ihnen nur den Tonversand -- Whisper laeuft lokal, und
+    /// hinaus geht ausschliesslich der fertige Text. Fuer Betreiber mit einem
+    /// maskierenden Gateway ist das der entscheidende Zustand: ein Filter kann
+    /// Namen im Text unkenntlich machen, in einer Tonaufnahme nicht.
+    var localTranscriptionAlways: Bool = false
     var selectedLocalTranscriptionModelName: String = LocalTranscriptionService.recommendedFastModelName
     var hasAutoSelectedFastLocalModel: Bool = false
 
@@ -109,6 +119,7 @@ struct AppSettings: Codable {
         hotkeyBindings: HotkeyBindings = HotkeyBindings(),
         hasSeenOnboarding: Bool = false,
         secureLocalModeEnabled: Bool = false,
+        localTranscriptionAlways: Bool = false,
         selectedLocalTranscriptionModelName: String = LocalTranscriptionService.recommendedFastModelName,
         hasAutoSelectedFastLocalModel: Bool = false,
         apiProvider: APIProvider = .openAI,
@@ -123,6 +134,7 @@ struct AppSettings: Codable {
         self.hotkeyBindings = hotkeyBindings
         self.hasSeenOnboarding = hasSeenOnboarding
         self.secureLocalModeEnabled = secureLocalModeEnabled
+        self.localTranscriptionAlways = localTranscriptionAlways
         self.selectedLocalTranscriptionModelName = selectedLocalTranscriptionModelName
         self.hasAutoSelectedFastLocalModel = hasAutoSelectedFastLocalModel
         self.apiProvider = apiProvider
@@ -139,6 +151,7 @@ struct AppSettings: Codable {
         case hotkeyBindings
         case hasSeenOnboarding
         case secureLocalModeEnabled
+        case localTranscriptionAlways
         case selectedLocalTranscriptionModelName
         case hasAutoSelectedFastLocalModel
         case apiProvider
@@ -163,6 +176,10 @@ struct AppSettings: Codable {
         )) ?? HotkeyBindings()
         hasSeenOnboarding = try container.decodeIfPresent(Bool.self, forKey: .hasSeenOnboarding) ?? false
         secureLocalModeEnabled = try container.decodeIfPresent(Bool.self, forKey: .secureLocalModeEnabled) ?? false
+        localTranscriptionAlways = try container.decodeIfPresent(
+            Bool.self,
+            forKey: .localTranscriptionAlways
+        ) ?? false
         selectedLocalTranscriptionModelName = try container.decodeIfPresent(
             String.self,
             forKey: .selectedLocalTranscriptionModelName

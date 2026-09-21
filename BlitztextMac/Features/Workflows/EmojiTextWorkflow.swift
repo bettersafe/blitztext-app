@@ -17,13 +17,24 @@ final class EmojiTextWorkflow: Workflow {
     private let customTerms: [String]
     private let language: String
     private let apiConfiguration: APIConfiguration
+    private let backend: TranscriptionBackend
+    private let localModelName: String
     private var processingTask: Task<Void, Never>?
 
-    init(settings: EmojiTextSettings, customTerms: [String] = [], language: String = "de", apiConfiguration: APIConfiguration) {
+    init(
+        settings: EmojiTextSettings,
+        customTerms: [String] = [],
+        language: String = "de",
+        apiConfiguration: APIConfiguration,
+        backend: TranscriptionBackend = .remote,
+        localModelName: String = LocalTranscriptionService.recommendedFastModelName
+    ) {
         self.settings = settings
         self.customTerms = customTerms
         self.language = language
         self.apiConfiguration = apiConfiguration
+        self.backend = backend
+        self.localModelName = localModelName
     }
 
     // MARK: - Recording State
@@ -84,13 +95,27 @@ final class EmojiTextWorkflow: Workflow {
             }
 
             do {
-                // Phase 1: Whisper transcription
-                let rawText = try await TranscriptionService.transcribe(
-                    audioURL: url,
-                    customTerms: vocabularyHints,
-                    language: language,
-                    config: apiConfiguration
-                )
+                // Phase 1: Transkription -- auf dem Geraet oder beim Anbieter.
+                // Ein maskierendes Gateway kann Namen im TEXT unkenntlich
+                // machen, in einer Tonaufnahme nicht. Wer den Ton nicht
+                // herausgeben will, laesst Whisper lokal laufen und schickt
+                // nur das Ergebnis weiter.
+                let rawText: String
+                switch backend {
+                case .local:
+                    rawText = try await LocalTranscriptionService.shared.transcribe(
+                        audioURL: url,
+                        language: language,
+                        modelName: localModelName
+                    )
+                case .remote:
+                    rawText = try await TranscriptionService.transcribe(
+                        audioURL: url,
+                        customTerms: vocabularyHints,
+                        language: language,
+                        config: apiConfiguration
+                    )
+                }
                 let cleanedRawText = TranscriptionQualityService.cleanedTranscript(rawText)
                 guard !TranscriptionQualityService.isLikelyArtifact(cleanedRawText, recordingDuration: recordingDuration) else {
                     phase = .error("Keine Aufnahme erkannt.")
