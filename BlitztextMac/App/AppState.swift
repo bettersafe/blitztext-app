@@ -262,7 +262,7 @@ final class AppState {
             let workflow = TranscriptionWorkflow(
                 customTerms: textImprovementSettings.customTerms,
                 language: transcriptionSettings.language,
-                backend: appSettings.secureLocalModeEnabled ? .local : .remote,
+                backend: transcriptionBackend,
                 localModelName: selectedLocalModelName,
                 apiConfiguration: apiConfiguration
             )
@@ -288,7 +288,7 @@ final class AppState {
                 settings: textImprovementSettings,
                 language: transcriptionSettings.language,
                 apiConfiguration: apiConfiguration,
-                backend: aiTranscriptionBackend,
+                backend: transcriptionBackend,
                 localModelName: selectedLocalModelName
             )
             configureWorkflowHandlers(workflow)
@@ -302,7 +302,7 @@ final class AppState {
                 customTerms: textImprovementSettings.customTerms,
                 language: transcriptionSettings.language,
                 apiConfiguration: apiConfiguration,
-                backend: aiTranscriptionBackend,
+                backend: transcriptionBackend,
                 localModelName: selectedLocalModelName
             )
             configureWorkflowHandlers(workflow)
@@ -316,7 +316,7 @@ final class AppState {
                 customTerms: textImprovementSettings.customTerms,
                 language: transcriptionSettings.language,
                 apiConfiguration: apiConfiguration,
-                backend: aiTranscriptionBackend,
+                backend: transcriptionBackend,
                 localModelName: selectedLocalModelName
             )
             configureWorkflowHandlers(workflow)
@@ -328,7 +328,7 @@ final class AppState {
                 type: .vaultDictation,
                 customTerms: textImprovementSettings.customTerms,
                 language: transcriptionSettings.language,
-                backend: appSettings.secureLocalModeEnabled ? .local : .remote,
+                backend: transcriptionBackend,
                 localModelName: selectedLocalModelName,
                 apiConfiguration: apiConfiguration
             )
@@ -341,13 +341,19 @@ final class AppState {
         page = source.presentsWorkflowPage ? .workflow : .main
     }
 
-    /// Welchen Weg die Tonaufnahme der Workflows mit KI-Nachbearbeitung nimmt.
+    /// Welchen Weg die Tonaufnahme nimmt -- fuer JEDEN Workflow, der aufnimmt.
     ///
-    /// `.local` verlangt ein installiertes Modell -- ohne das waere der
-    /// Schalter eine Zusage, die das Geraet nicht halten kann. `isWorkflowAvailable`
-    /// prueft dieselbe Bedingung, damit der Workflow gar nicht erst startet.
-    var aiTranscriptionBackend: TranscriptionBackend {
-        appSettings.localTranscriptionAlways && selectedLocalModelIsInstalled ? .local : .remote
+    /// ⚠ Die Regel gehoert an genau eine Stelle. Ein Schalter, der
+    /// "Transkription immer lokal" heisst, aber nur fuer drei von fuenf
+    /// Workflows gilt, ist schlimmer als keiner: der Ton geht dann ausgerechnet
+    /// bei dem Kuerzel hinaus, das man am haeufigsten benutzt.
+    ///
+    /// `.local` verlangt ein installiertes Modell -- ohne das waere der Schalter
+    /// eine Zusage, die das Geraet nicht halten kann. `isWorkflowAvailable`
+    /// prueft dieselbe Bedingung, damit ein Workflow gar nicht erst startet.
+    var transcriptionBackend: TranscriptionBackend {
+        if appSettings.secureLocalModeEnabled { return .local }
+        return appSettings.localTranscriptionAlways && selectedLocalModelIsInstalled ? .local : .remote
     }
 
     func isWorkflowAvailable(_ type: WorkflowType) -> Bool {
@@ -355,12 +361,12 @@ final class AppState {
         case .localTranscription:
             return selectedLocalModelIsInstalled
         case .transcription:
-            return appSettings.secureLocalModeEnabled
+            return transcriptionBackend == .local
                 ? selectedLocalModelIsInstalled
                 : remoteProviderConfigured
         case .vaultDictation:
             guard vaultFolderConfigured else { return false }
-            return appSettings.secureLocalModeEnabled
+            return transcriptionBackend == .local
                 ? selectedLocalModelIsInstalled
                 : remoteProviderConfigured
         case .textImprover, .dampfAblassen, .emojiText:
